@@ -1,0 +1,5 @@
+log
+dataset/train
+dataset/ETFs
+dataset/test
+dataset/valid
