@@ -24,7 +24,7 @@ def main():
 
     model     = TimeSeriesModel(n_bins, n_lag).to(device)
     optimizer = optim.Adam(model.parameters(), lr = learning_rate)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size = 50, gamma = 0.1)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size = 50, gamma = 0.97)
 
     if start_epoch != 0:
         checkpoint = torch.load('./log/checkpoint_epoch{}.pth'.format(start_epoch-1)) 
@@ -37,22 +37,11 @@ def main():
         print('Epoch [{}/{}]'.format(epoch, num_epochs + start_epoch - 1))
         t0 = time.time()    
         loss = train_valid(model, optimizer, scheduler, epoch, data_loaders, data_size)
-        #scheduler.step()
+        scheduler.step()
         t1 = time.time()
         #print("It took {0}s".format(t1-t0))
     print(80 * '=') 
 
-
-def map_float_to_class_idx(values, n_bins):
-    # map change values to 0..n_bins
-    #resolution = 0.001 # 100 equidistant bins: 10% change possible
-    range_max = 0.5 * n_bins * bin_width
-    eps = 1e-6
-    # TODO: finer resolution for more likely ( = smaller) values
-    t0 = (torch.clamp(values, -range_max+eps, range_max-eps) + range_max) / (2.*range_max) # 0..0.99
-    t1 = (t0 * n_bins).long() # convert to idx
-    #print(values, t1)
-    return t1
 
 def map_float_to_normal_distr(values, n_bins, bin_width, T):
     # For each batch: Sample around given value
@@ -115,7 +104,9 @@ def train_valid(model, optimizer, scheduler, epoch, dataloaders, data_size):
             #volume_change_target = (next_volume - input_volumes[:,:, -1]) / input_volumes[:,:, -1]
             #plt.hist(volume_change_target.detach().cpu().numpy(), 100)
             #plt.hist(input_volumes[0, 0].detach().cpu().numpy(), 100)
+            #plt.hist(price_change_target.view(-1).detach().cpu().numpy(), 100, color='b', alpha=0.1)
             #plt.show()
+            #plt.pause(0.1)
             #volume_change_distr_target = map_float_to_normal_distr(volume_change_target, n_bins, \
             #                                                       bin_width=2./n_bins, T=1e-5)
 
@@ -123,14 +114,14 @@ def train_valid(model, optimizer, scheduler, epoch, dataloaders, data_size):
                 
                 # compute distribution for percentage deviation from last day in input sequence
                 price_predict = model(input_all)
-                plt.clf() 
-                plt.plot(price_predict[0].detach().cpu().numpy(), 'r')
-                plt.plot(price_change_distr_target[0].detach().cpu().numpy(), 'g')
-                plt.ylim([0,1])
+                #plt.clf() 
+                #plt.plot(price_predict[0].detach().cpu().numpy(), 'r')
+                #plt.plot(price_change_distr_target[0].detach().cpu().numpy(), 'g')
+                #plt.ylim([0,1])
                 #plt.plot(volume_predict[0].detach().cpu().numpy(), 'r')
                 #plt.plot(volume_change_distr_target[0].detach().cpu().numpy(), 'g')
-                plt.show()
-                plt.pause(0.001)
+                #plt.show()
+                #plt.pause(0.001)
                 #print(volume_change_distr_target[0].detach().cpu().numpy())
                 # Compute Kullback-Leibler divergence, i.e. "distance" between two distributions
                 kl_loss     = get_kl_loss(price_change_distr_target,  price_predict)# + \
@@ -146,7 +137,7 @@ def train_valid(model, optimizer, scheduler, epoch, dataloaders, data_size):
         loss_mean = loss_total/n_samples
         write_losses(loss_mean)
         print("loss in epoch {0}: {1}".format(epoch, loss_mean))
-        if phase == 'train' and epoch % 50 == 0:
+        if phase == 'train' and epoch % 100 == 0:
             torch.save({'epoch': epoch,
                         'state_dict': model.state_dict()},
                         './log/checkpoint_epoch{}.pth'.format(epoch))
