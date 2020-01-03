@@ -23,6 +23,7 @@ class TimeSeriesModel(nn.Module):
                         nn.ReLU())
         self.conv5 = nn.Sequential(nn.Conv1d(
                         in_channels=128, out_channels=128, kernel_size=5, stride=1, padding=0),                              
+                        nn.Dropout(0.25),
                         nn.ReLU())
         
         self.out0 = nn.Sequential( nn.Linear(15*128, n_bins, bias = False),
