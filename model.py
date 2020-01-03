@@ -8,7 +8,7 @@ class TimeSeriesModel(nn.Module):
         super (TimeSeriesModel, self).__init__() 
         self.n_bins = n_bins
         self.conv1 = nn.Sequential(nn.Conv1d(
-                        in_channels=2, out_channels=128, kernel_size=5, stride=1, padding=0), 
+                        in_channels=1, out_channels=128, kernel_size=5, stride=1, padding=0), 
                         nn.ReLU(),
                         nn.MaxPool1d(2,2))
         self.conv2 = nn.Sequential(nn.Conv1d(
@@ -46,12 +46,12 @@ class TimeSeriesModel(nn.Module):
         #print(x.shape)
         #exit()
         out0 = self.out0(x)
-        out1 = self.out1(x)
+        #out1 = self.out1(x)
         #print(x.shape)
         #exit()
         #x = self.conv2(x) 
         #print(out)
-        return out0, out1
+        return out0#, out1
     
 
 '''

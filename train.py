@@ -15,9 +15,10 @@ import matplotlib.pyplot as plt
 device  = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 start_epoch = 0
 num_epochs  = 15000
-learning_rate = 1e-4
+learning_rate = 1e-3
 n_bins = 100 # Number of bins to classify price changes
 n_lag = 120
+target_std = 1e-5
 
 def main():
 
@@ -102,25 +103,26 @@ def train_valid(model, optimizer, scheduler, epoch, dataloaders, data_size):
             
             # Inputs
             input_prices  = batch_sample['last_prices'].unsqueeze(1).to(device)  + 1e-9
-            input_volumes = batch_sample['last_volumes'].unsqueeze(1).to(device) + 1e-9
-            input_all  = torch.cat((input_prices, input_volumes), dim=1)
+            #input_volumes = batch_sample['last_volumes'].unsqueeze(1).to(device) + 1e-9
+            input_all  = input_prices#torch.cat((input_prices, input_volumes), dim=1)
             # Output: Express next price as percentage change from last observed price
             next_prices         = batch_sample['next_price'].unsqueeze(1).to(device)
             price_change_target = (next_prices - input_prices[:,:, -1]) / input_prices[:,:, -1]
-            price_change_distr_target = map_float_to_normal_distr(price_change_target, n_bins, bin_width=0.2/n_bins, T=1e-5)
             
-            next_volume          = batch_sample['next_volume'].unsqueeze(1).to(device)
-            volume_change_target = (next_volume - input_volumes[:,:, -1]) / input_volumes[:,:, -1]
+            price_change_distr_target = map_float_to_normal_distr(price_change_target, n_bins, bin_width=0.2/n_bins, T=target_std)
+            
+            #next_volume          = batch_sample['next_volume'].unsqueeze(1).to(device)
+            #volume_change_target = (next_volume - input_volumes[:,:, -1]) / input_volumes[:,:, -1]
             #plt.hist(volume_change_target.detach().cpu().numpy(), 100)
             #plt.hist(input_volumes[0, 0].detach().cpu().numpy(), 100)
             #plt.show()
-            volume_change_distr_target = map_float_to_normal_distr(volume_change_target, n_bins, \
-                                                                   bin_width=2./n_bins, T=1e-5)
+            #volume_change_distr_target = map_float_to_normal_distr(volume_change_target, n_bins, \
+            #                                                       bin_width=2./n_bins, T=1e-5)
 
             with torch.set_grad_enabled(phase == 'train'):
                 
                 # compute distribution for percentage deviation from last day in input sequence
-                price_predict, volume_predict = model(input_all)#.to(device)
+                price_predict = model(input_all)
                 plt.clf() 
                 plt.plot(price_predict[0].detach().cpu().numpy(), 'r')
                 plt.plot(price_change_distr_target[0].detach().cpu().numpy(), 'g')
@@ -131,8 +133,8 @@ def train_valid(model, optimizer, scheduler, epoch, dataloaders, data_size):
                 plt.pause(0.001)
                 #print(volume_change_distr_target[0].detach().cpu().numpy())
                 # Compute Kullback-Leibler divergence, i.e. "distance" between two distributions
-                kl_loss     = get_kl_loss(price_change_distr_target,  price_predict) + \
-                              get_kl_loss(volume_change_distr_target, volume_predict)
+                kl_loss     = get_kl_loss(price_change_distr_target,  price_predict)# + \
+                              #get_kl_loss(volume_change_distr_target, volume_predict)
                 n_samples  += input_prices.shape[0]
                 loss_total += kl_loss.detach().item()
                 
